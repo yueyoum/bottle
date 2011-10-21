@@ -143,7 +143,7 @@ class TestSimpleTemplate(unittest.TestCase):
         """ Templates: Nobreak statements"""
         t = SimpleTemplate("start\\\\\n%pass\nend")
         self.assertEqual(u'startend', t.render())
-        
+
     def test_nonobreak(self):
         """ Templates: Escaped nobreak statements"""
         t = SimpleTemplate("start\\\\\n\\\\\n%pass\nend")
@@ -183,7 +183,7 @@ class TestSimpleTemplate(unittest.TestCase):
         """ Templates: Exceptions"""
         self.assertRaises(SyntaxError, lambda: SimpleTemplate('%for badsyntax').co)
         self.assertRaises(IndexError, SimpleTemplate('{{i[5]}}').render, i=[0])
-    
+
     def test_winbreaks(self):
         """ Templates: Test windows line breaks """
         t = SimpleTemplate('%var+=1\r\n{{var}}\r\n')
@@ -232,20 +232,44 @@ class TestSimpleTemplate(unittest.TestCase):
         t = SimpleTemplate(u'anything')
         self.assertEqual(u'anything', t.render())
 
-    def test_global_config(self):
+    def test_super_include(self):
+        main = SimpleTemplate('''
+        % @block
+        % def func():
+            content
+        % end
+        % include("sub")
+        ''')
+        sub = SimpleTemplate('''start
+        % @extend
+        % def func(super):
+            layout
+            % super()
+        % end
+        % func()
+        end''')
+        main.cache['sub'] = sub
+        self.assertEqual([u'start', u'content', u'layout', u'end'],
+            main.render().split())
+
+    def test_super_layout(self):
         content = SimpleTemplate('''% layout("layout")
-        % def x():
-            content {{next('x')()}}
+        % @extend
+        % def func(super):
+            content
+            % super()
         % end
         ''')
         layout = SimpleTemplate('''start
-        % def x():
+        % @block
+        % def func():
             layout
         % end
-        %_super['x']()
-        ''')
+        % func()
+        end''')
         content.cache['layout'] = layout
-        self.assertEqual(u'anything', content.render())
+        self.assertEqual([u'start', u'content', u'layout', u'end'],
+            content.render().split())
 
 if __name__ == '__main__': #pragma: no cover
     unittest.main()

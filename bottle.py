@@ -2690,52 +2690,62 @@ class SimpleTemplate(BaseTemplate):
     def co(self):
         return self.parser.compile(self.source, self.filename or '<string>')
 
+    def _cached(self, name):
+        if name not in self.cache:
+            self.cache[name] = self.__class__(name=name, lookup=self.lookup)
+        return self.cache[name]
+
+    def _block(self, env, arg=None):
+        name = None if callable(arg) else arg
+        def decorator(func):
+            rname = name or func.__name__
+            env['_blocks'][rname] = func
+            return func
+        return decorator(arg) if callable(arg) else decorator
+
+    def _extends(self, env, arg=None):
+        name = None if callable(arg) else arg
+        def decorator(func):
+            rname = name or func.__name__
+            if '_next' not in env:
+                raise Exception('Rendered as main template.')
+            if rname not in env['_next']['_blocks']:
+                raise Exception('No block with that name.')
+            return partial(env['_next']['_blocks'][rname], func)
+        return decorator(arg) if callable(arg) else decorator
+
     def _include(self, _env, _name, *args, **kwargs):
         ''' Render a sub-template into the stdout buffer. '''
-        if _name not in self.cache:
-            self.cache[_name] = self.__class__(name=_name, lookup=self.lookup)
-        return self.cache[_name].execute(_env['_stdout'], _env, *args, **kwargs)
+        newenv, subtpl = _env.copy(), self._cached(_name)
+        newenv['_next'] = _env
+        return subtpl.execute(_env['_stdout'], newenv, *args, **kwargs)
 
     def _layout(self, _env, _name, *args, **kwargs):
         ''' Add rebase info to the env namespace. '''
         _env['_layout'] = _name, args, kwargs
 
-    def _next(self, env, name, default=Exception):
-        if '_super' in env:
-            if name in env['_super']:
-                return env['_super']
-            elif default is Exception:
-                raise NameError('Layout template does not define %r' % name)
-        elif default is Exception:
-            raise RuntimeError('No layout template found.')
-        return default
-
-    def execute(self, _stdout, *args, **kwargs):
-        env = self.defaults.copy()
+    def execute(self, stdout, env, *args, **kwargs):
         for dictarg in args: env.update(dictarg)
         env.update(kwargs)
-        env.update({'_stdout': _stdout, '_printlist': _stdout.extend,
+        env.update({'_stdout': stdout, '_printlist': stdout.extend,
             '_str': self._str, '_escape': self._escape, 'get': env.get,
             'setdefault': env.setdefault, 'defined': env.__contains__,
             'layout': partial(self._layout, env), '_layout': None,
             'include': partial(self._include, env),
-            'next': partial(self._next, env)
-        })
-        if '_super' in env: kwargs['_super'] = env.pop('_super')
+            'block': partial(self._block, env), '_blocks':{}})
         eval(self.co, env)
         if env.get('_layout'):
             name, args, kwargs = env['_layout']
-            kwargs['base'] = _stdout[:] #copy stdout
-            kwargs['_super'] = env
-            del _stdout[:] # clear stdout
-            return self._include(env, name, *args, **kwargs)
+            nenv = env.copy()
+            kwargs.update(base=stdout[:], _next=env)
+            del stdout[:]
+            return self._cached(name).execute(stdout, nenv, *args, **kwargs)
         return env
 
     def render(self, *args, **kwargs):
         """ Render the template using keyword arguments as local variables. """
-        for dictarg in args: kwargs.update(dictarg)
         stdout = []
-        self.execute(stdout, kwargs)
+        self.execute(stdout, self.defaults.copy(), *args, **kwargs)
         return ''.join(stdout)
 
 
