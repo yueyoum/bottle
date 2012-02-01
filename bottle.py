@@ -35,12 +35,14 @@ if __name__ == '__main__':
     if _cmd_options.server and _cmd_options.server.startswith('gevent'):
         import gevent.monkey; gevent.monkey.patch_all()
 
-import base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
+import base64, cgi, email.utils, functools, hmac, imp, mimetypes,\
         os, re, subprocess, sys, tempfile, threading, time, urllib, warnings
 
+from itertools import chain as ichain
 from datetime import date as datedate, datetime, timedelta
 from tempfile import TemporaryFile
 from traceback import format_exc, print_exc
+from types import GeneratorType
 
 try: from json import dumps as json_dumps, loads as json_lds
 except ImportError: # pragma: no cover
@@ -200,35 +202,6 @@ class lazy_attribute(object):
 class BottleException(Exception):
     """ A base class for exceptions used by bottle. """
     pass
-
-
-#TODO: This should subclass BaseRequest
-class HTTPResponse(BottleException):
-    """ Used to break execution and immediately finish the response """
-    def __init__(self, output='', status=200, header=None):
-        super(BottleException, self).__init__("HTTP Response %d" % status)
-        self.status = int(status)
-        self.output = output
-        self.headers = HeaderDict(header) if header else None
-
-    def apply(self, response):
-        if self.headers:
-            for key, value in self.headers.allitems():
-                response.headers[key] = value
-        response.status = self.status
-
-
-class HTTPError(HTTPResponse):
-    """ Used to generate an error page """
-    def __init__(self, code=500, output='Unknown Error', exception=None,
-                 traceback=None, header=None):
-        super(HTTPError, self).__init__(output, code, header)
-        self.exception = exception
-        self.traceback = traceback
-
-    def __repr__(self):
-        return tonat(template(ERROR_PAGE_TEMPLATE, e=self))
-
 
 
 
@@ -576,7 +549,7 @@ class Bottle(object):
                     rs.status = status
                     for name, value in header: rs.add_header(name, value)
                     return rs.body.append
-                rs.body = itertools.chain(rs.body, app(request.environ, start_response))
+                rs.body = ichain(rs.body, app(request.environ, start_response))
                 return HTTPResponse(rs.body, rs.status_code, rs.headers)
             finally:
                 request.path_shift(-path_depth)
@@ -745,123 +718,69 @@ class Bottle(object):
             return self._handle(path)
         return self._handle({'PATH_INFO': path, 'REQUEST_METHOD': method.upper()})
 
-    def _handle(self, environ):
+    def _handle_exception(self, msg, environ=None):
+        ''' Return :exc:`HTTPError` if called within an except-block. Some
+            fatal exceptions (KeyboardInterrupt, SystemExit, MemoryError) are
+            re-raised. If :attr:`catchall` is False, all exceptions are
+            re-raised. If an environ is given, the stacktrace is printed to
+            environ[wsgi.error].'''
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fatal = (KeyboardInterrupt, SystemExit, MemoryError)
+        if not self.catchall or isinstance(exc_obj, fatal):
+            raise exc_type, exc_obj, exc_tb
+        if environ and 'wsgi.errors' in environ:
+            environ['wsgi.errors'].write(tob(format_exc(100)))
+        return HTTPError(500, msg)
+
+    def _handle_error(self, error, environ=None):
+        try:
+            code = error.status_code
+            if code in self.error_handler:
+                error.body = self.error_handler[code](error)
+            else:
+                error.body = template(ERROR_PAGE_TEMPLATE, e=error)
+            return error
+        except:
+            return self._handle_exception("Error in error handler.", environ)
+
+    def _get_response(self, environ):
+        ''' Search for a matching request handler and call it. Return a
+            Response object. '''
         try:
             route, args = self.router.match(environ)
-            environ['route.handle'] = environ['bottle.route'] = route
-            environ['route.url_args'] = args
-            environ['bottle.app'] = self
-            request.bind(environ)
-            response.bind()
-            return route.call(**args)
-        except HTTPResponse:
-            return _e()
+            environ.update({
+                'bottle.app': self,
+                'bottle.route': route,
+                'bottle.args': args})
+            request.bind(environ) # Setup the (thread-local) global instance.
+            response.bind()       # Reset the (thread-local) global instance.
+            result = route.call(**args)
         except RouteReset:
             route.reset()
-            return self._handle(environ)
-        except (KeyboardInterrupt, SystemExit, MemoryError):
-            raise
-        except Exception:
-            if not self.catchall: raise
-            stacktrace = format_exc(10)
-            environ['wsgi.errors'].write(stacktrace)
-            return HTTPError(500, "Internal Server Error", _e(), stacktrace)
-
-    def _cast(self, out, peek=None):
-        """ Try to convert the parameter into something WSGI compatible and set
-        correct HTTP headers when possible.
-        Support: False, str, unicode, dict, HTTPResponse, HTTPError, file-like,
-        iterable of strings and iterable of unicodes
-        """
-
-        # Empty output is done here
-        if not out:
-            response['Content-Length'] = 0
-            return []
-        # Join lists of byte or unicode strings. Mixed lists are NOT supported
-        if isinstance(out, (tuple, list))\
-        and isinstance(out[0], (bytes, unicode)):
-            out = out[0][0:0].join(out) # b'abc'[0:0] -> b''
-        # Encode unicode strings
-        if isinstance(out, unicode):
-            out = out.encode(response.charset)
-        # Byte Strings are just returned
-        if isinstance(out, bytes):
-            response['Content-Length'] = len(out)
-            return [out]
-        # HTTPError or HTTPException (recursive, because they may wrap anything)
-        # TODO: Handle these explicitly in handle() or make them iterable.
-        if isinstance(out, HTTPError):
-            out.apply(response)
-            out = self.error_handler.get(out.status, repr)(out)
-            if isinstance(out, HTTPResponse):
-                depr('Error handlers must not return :exc:`HTTPResponse`.') #0.9
-            return self._cast(out)
-        if isinstance(out, HTTPResponse):
-            out.apply(response)
-            return self._cast(out.output)
-
-        # File-like objects.
-        if hasattr(out, 'read'):
-            if 'wsgi.file_wrapper' in request.environ:
-                return request.environ['wsgi.file_wrapper'](out)
-            elif hasattr(out, 'close') or not hasattr(out, '__iter__'):
-                return WSGIFileWrapper(out)
-
-        # Handle Iterables. We peek into them to detect their inner type.
-        try:
-            out = iter(out)
-            first = next(out)
-            while not first:
-                first = next(out)
-        except StopIteration:
-            return self._cast('')
+            return self._get_response(environ)
         except HTTPResponse:
-            first = _e()
-        except (KeyboardInterrupt, SystemExit, MemoryError):
-            raise
-        except Exception:
-            if not self.catchall: raise
-            first = HTTPError(500, 'Unhandled exception', _e(), format_exc(10))
+            result = _e()
+        except:
+            result = self._handle_exception("Application Error", environ)
 
-        # These are the inner types allowed in iterator or generator objects.
-        if isinstance(first, HTTPResponse):
-            return self._cast(first)
-        if isinstance(first, bytes):
-            return itertools.chain([first], out)
-        if isinstance(first, unicode):
-            return imap(lambda x: x.encode(response.charset),
-                                  itertools.chain([first], out))
-        return self._cast(HTTPError(500, 'Unsupported response type: %s'\
-                                         % type(first)))
+        if not isinstance(result, BaseResponse):
+            response.body = result
+            result = response
+        elif isinstance(result, HTTPError):
+            result = self._handle_error(result, environ)
+        
+        return result
 
     def wsgi(self, environ, start_response):
         """ The bottle WSGI-interface. """
+        # Both _get_response and _cast are "safe" which means they handle
+        # errors and raise exceptions only if they are fatal.
+        response = self._get_response(environ)
         try:
-            out = self._cast(self._handle(environ))
-            # rfc2616 section 4.3
-            if response._status_code in (100, 101, 204, 304)\
-            or request.method == 'HEAD':
-                if hasattr(out, 'close'): out.close()
-                out = []
-            if isinstance(response._status_line, unicode):
-              response._status_line = str(response._status_line)
-            start_response(response._status_line, list(response.iter_headers()))
-            return out
-        except (KeyboardInterrupt, SystemExit, MemoryError):
-            raise
-        except Exception:
-            if not self.catchall: raise
-            err = '<h1>Critical error while processing request: %s</h1>' \
-                  % html_escape(environ.get('PATH_INFO', '/'))
-            if DEBUG:
-                err += '<h2>Error:</h2>\n<pre>\n%s\n</pre>\n' \
-                       '<h2>Traceback:</h2>\n<pre>\n%s\n</pre>\n' \
-                       % (html_escape(repr(_e())), html_escape(format_exc(10)))
-            environ['wsgi.errors'].write(err)
-            headers = [('Content-Type', 'text/html; charset=UTF-8')]
-            start_response('500 INTERNAL SERVER ERROR', headers)
-            return [tob(err)]
+            return response(environ, start_response)
+        except:
+            msg = 'Fatal application error.'
+            return self._handle_exception(msg, environ)(environ, start_response)
 
     def __call__(self, environ, start_response):
         ''' Each instance of :class:'Bottle' is a WSGI application. '''
@@ -1229,6 +1148,8 @@ class BaseResponse(object):
         yields parts of the body and not the headers.
     """
 
+    buffsize = 1024*1024
+
     default_status = 200
     default_content_type = 'text/html; charset=UTF-8'
 
@@ -1240,30 +1161,19 @@ class BaseResponse(object):
                   'Content-Length', 'Content-Range', 'Content-Type',
                   'Content-Md5', 'Last-Modified'))}
 
-    def __init__(self, body='', status=None, **headers):
+    def __init__(self, body='', status=None, header=None, **headers):
         self._status_line = None
         self._status_code = None
-        self.body = body
-        self._cookies = None
-        self._headers = {'Content-Type': [self.default_content_type]}
+        self._cookies     = None
+        self._headers     = {}
+        self.body         = body
         self.status = status or self.default_status
-        if headers:
-            for name, value in headers.items():
-                self[name] = value
-
-    def copy(self):
-        ''' Returns a copy of self. '''
-        copy = Response()
-        copy.status = self.status
-        copy._headers = dict((k, v[:]) for (k, v) in self._headers.items())
-        return copy
-
-    def __iter__(self):
-        return iter(self.body)
-
-    def close(self):
-        if hasattr(self.body, 'close'):
-            self.body.close()
+        for key, value in header or []:
+            self.add_header(key, value)
+        for key, value in headers.items():
+            self.add_header(key, value)
+        if 'Content-Type' not in self._headers:
+            self.set_header('Content-Type', self.default_content_type)
 
     @property
     def status_line(self):
@@ -1298,11 +1208,11 @@ class BaseResponse(object):
             always a status string. ''')
     del _get_status, _set_status
 
-    @property
+    @cached_property
     def headers(self):
         ''' An instance of :class:`HeaderDict`, a case-insensitive dict-like
             view on the response headers. '''
-        self.__dict__['headers'] = hdict = HeaderDict()
+        hdict = HeaderDict()
         hdict.dict = self._headers
         return hdict
 
@@ -1438,7 +1348,70 @@ class BaseResponse(object):
         for name, value in self.headerlist:
             out += '%s: %s\n' % (name.title(), value.strip())
         return out
+    __str__ = __repr__
 
+    @property
+    def output(self):
+        depr('Access BaseResponse.body directly.') #0.11
+        return self.body
+    
+    def __call__(self, environ, start_response):
+        ''' Answer a WSGI request with the data stored in this response.
+            This should be called only once because it changes internal state
+            and might close the body iterator, if it has a close method.
+            If anything goes wrong, start_response is not called. '''
+        body = self.body
+        if not body:
+            body, self['Content-Length'] = [], 0
+        # Buffered data types
+        elif isinstance(body, bytes):
+            body, self['Content-Length'] = [body], len(body)
+        elif isinstance(body, unicode):   
+            body = body.encode(self.charset)
+            body, self['Content-Length'] = [body], len(body)
+        elif isinstance(body, (tuple, list)):
+            depr('Using lists or tuples as response body is deprecated.') #0.11
+            body = body[0][0:0].join(body) # b'abc'[0:0] -> b''
+            if isinstance(body, unicode):   
+                body = body.encode(self.charset)
+            body, self['Content-Length'] = [body], len(body)
+        elif isinstance(body, BytesIO):
+            body = body.read(-1)
+            body, self['Content-Length'] = [body], len(body)
+        elif isinstance(body, StringIO):
+            body = body.read(-1).encode(self.charset)
+            body, self['Content-Length'] = [body], len(body)
+        # Nested data types
+        elif isinstance(body, BaseResponse):
+            depr('Nested responses are no longer supported.') #0.11
+            return body(environ, start_response)
+        # File-like objects.
+        elif hasattr(body, 'read'):
+            body = WSGIFileWrapper(body)
+        # Everything else...
+        else:
+            body, first = iter(body), None
+            while not first:
+                first = next(body)
+            body = ichain([first], body)
+            if isinstance(first, unicode):
+                body = imap(lambda x: x.encode(self.charset), body)
+            elif isinstance(first, BaseResponse):
+                depr("Iterators must return bytes or strings, "\
+                     "not %r." % type(first)) # 0.11
+                return first((environ, start_response))
+
+        # rfc2616 section 4.3
+        if self._status_code in (100, 101, 204, 304)\
+        or environ.get('REQUEST_METHOD') == 'HEAD':
+            if hasattr(body, 'close'): body.close()
+            body = []
+
+        start_response(self.status, self.headerlist)
+        return body
+
+
+    
 
 class LocalRequest(BaseRequest, threading.local):
     ''' A thread-local subclass of :class:`BaseRequest`. '''
@@ -1448,10 +1421,31 @@ class LocalRequest(BaseRequest, threading.local):
 
 class LocalResponse(BaseResponse, threading.local):
     ''' A thread-local subclass of :class:`BaseResponse`. '''
-    bind = BaseResponse.__init__
+    def bind(self):
+        self.__dict__.clear()
+        self.__init__()
+
 
 Response = LocalResponse # BC 0.9
 Request  = LocalRequest  # BC 0.9
+
+class HTTPResponse(BaseResponse, BottleException):
+    """ Used to break execution and immediately finish the response """
+    def __init__(self, body='', status=200, header=None, **headers):
+        BaseResponse.__init__(self, body, status, **headers)
+        BottleException.__init__(self, "HTTP Response %s" % self.status)
+        if header:
+            for key, value in HeaderDict(header).allitems():
+                self.set_header(key, value)
+
+class HTTPError(HTTPResponse):
+
+    """ Used to generate an error page. """
+    def __init__(self, status=500, body='Unknown Error', exception=None,
+                 traceback=None, header=None, **headers):
+        HTTPResponse.__init__(self, body, status, header=header, **headers)
+        self.exception = e = exception or _e()
+        self.traceback = traceback or (format_exc(10) if e else None)
 
 
 
@@ -2943,11 +2937,10 @@ _HTTP_STATUS_LINES = dict((k, '%d %s'%(k,v)) for (k,v) in HTTP_CODES.items())
 ERROR_PAGE_TEMPLATE = """
 %try:
     %from bottle import DEBUG, HTTP_CODES, request, touni
-    %status_name = HTTP_CODES.get(e.status, 'Unknown').title()
     <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
     <html>
         <head>
-            <title>Error {{e.status}}: {{status_name}}</title>
+            <title>Error: {{e.status_line}}</title>
             <style type="text/css">
               html {background-color: #eee; font-family: sans;}
               body {background-color: #fff; border: 1px solid #ddd;
@@ -2956,10 +2949,10 @@ ERROR_PAGE_TEMPLATE = """
             </style>
         </head>
         <body>
-            <h1>Error {{e.status}}: {{status_name}}</h1>
+            <h1>Error: {{e.status_line}}</h1>
             <p>Sorry, the requested URL <tt>{{repr(request.url)}}</tt>
                caused an error:</p>
-            <pre>{{e.output}}</pre>
+            <pre>{{e.body}}</pre>
             %if DEBUG and e.exception:
               <h2>Exception:</h2>
               <pre>{{repr(e.exception)}}</pre>

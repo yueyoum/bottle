@@ -572,7 +572,7 @@ class TestRedirect(unittest.TestCase):
             bottle.redirect(target, **(query or {}))
         except bottle.HTTPResponse:
             r = _e()
-            self.assertEqual(status, r.status)
+            self.assertEqual(status, r.status_code)
             self.assertTrue(r.headers)
             self.assertEqual(result, r.headers['Location'])
                 

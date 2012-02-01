@@ -279,30 +279,54 @@ In pure WSGI, the range of types you may return from your application is very li
 
 Bottle is much more flexible and supports a wide range of types. It even adds a ``Content-Length`` header if possible and encodes unicode automatically, so you don't have to. What follows is a list of data types you may return from your application callbacks and a short description of how these are handled by the framework:
 
-Dictionaries
-    As mentioned above, Python dictionaries (or subclasses thereof) are automatically transformed into JSON strings and returned to the browser with the ``Content-Type`` header set to ``application/json``. This makes it easy to implement json-based APIs. Data formats other than json are supported too. See the :ref:`tutorial-output-filter` to learn more.
+.. note:: The ordering of this list is significant. You may for example return a subclass of :class:`str` with a ``read()`` method. It is still treated as a string instead of a file, because strings are handled first.
 
-Empty Strings, ``False``, ``None`` or other non-true values:
-    These produce an empty output with the ``Content-Length`` header set to 0.
 
-Unicode strings
-    Unicode strings (or iterables yielding unicode strings) are automatically encoded with the codec specified in the ``Content-Type`` header (utf8 by default) and then treated as normal byte strings (see below).
+.. rubric:: Empty Strings or ``None``
 
-Byte strings
-    Bottle returns strings as a whole (instead of iterating over each char) and adds a ``Content-Length`` header based on the string length. Lists of byte strings are joined first. Other iterables yielding byte strings are not joined because they may grow too big to fit into memory. The ``Content-Length`` header is not set in this case.
+These produce a response with an empty body and a ``Content-Length`` of zero.
 
-Instances of :exc:`HTTPError` or :exc:`HTTPResponse`
-    Returning these has the same effect as when raising them as an exception. In case of an :exc:`HTTPError`, the error handler is applied. See :ref:`tutorial-errorhandling` for details.
+.. rubric:: Dictionaries
 
-File objects
-    Everything that has a ``.read()`` method is treated as a file or file-like object and passed to the ``wsgi.file_wrapper`` callable defined by the WSGI server framework. Some WSGI server implementations can make use of optimized system calls (sendfile) to transmit files more efficiently. In other cases this just iterates over chunks that fit into memory. Optional headers such as ``Content-Length`` or ``Content-Type`` are *not* set automatically. Use :func:`send_file` if possible. See :ref:`tutorial-static-files` for details.
+Python dictionaries (or subclasses thereof) are transformed into JSON strings and returned to the browser with the ``Content-Type`` header set to ``application/json``. This is the default and perfect for json-based web APIs, but can be changed using plugins.
 
-Iterables and generators
-    You are allowed to use ``yield`` within your callbacks or return an iterable, as long as the iterable yields byte strings, unicode strings, :exc:`HTTPError` or :exc:`HTTPResponse` instances. Nested iterables are not supported, sorry. Please note that the HTTP status code and the headers are sent to the browser as soon as the iterable yields its first non-empty value. Changing these later has no effect.
+.. rubric:: Byte Strings
 
-The ordering of this list is significant. You may for example return a subclass of :class:`str` with a ``read()`` method. It is still treated as a string instead of a file, because strings are handled first.
+Byte strings are sent to the browser as a single blob of data. The length of the string is known and Bottle can add the ``Content-Length`` header automatically.
 
-.. rubric:: Changing the Default Encoding
+.. rubric:: Unicode Strings
+
+Unicode strings are encoded using the charset defined in the ``Content-Type`` header (which defaults to utf8) and then treated as normal byte strings.
+
+.. rubric:: File Objects
+
+Everything that has a ``.read()`` method is treated as a file or file-like object and passed to the ``wsgi.file_wrapper`` callable defined by the WSGI server framework. Some WSGI server implementations can make use of optimized system calls (sendfile) to transmit files more efficiently. In other cases this just iterates over chunks that fit into memory. Optional headers such as ``Content-Length`` or ``Content-Type`` are *not* set automatically. Use the :func:`static_file` helper if you need that. See :ref:`tutorial-static-files` for details.
+
+.. rubric:: Iterators and Generators
+
+Generators can be used to stream data to the client in an memory efficient way. The returned strings are not buffered, which means you can generate huge amounts of data and stream them to the client chunk by chunk. This works with any iterable as long as it returns byte or unicode strings only.
+
+There is one catch, though: As soon as the iterator returns the first non-empty chunk (empty strings don't count), all headers are sent to the client immediately. Changing them later has no effect::
+
+    @route('/database.csv')
+    def dump_large_database_as_csv():
+        response['Content-Type'] = 'text/csv'
+        def generator():
+            for row in iter_database_rows():
+                yield ', '.join(row) + '\n'
+        return generator()
+
+
+.. rubric:: Instances of :exc:`HTTPError` or :exc:`HTTPResponse`
+
+You can return these or raise them as an exception. They can be used to overrule the global response object and all headers defined so far. Additionally, :exc:`HTTPError` instances are passed to the corresponding :ref:`tutorial-errorhandling` and should be used in error conditions.
+
+
+
+
+
+Changing the Default Encoding
+------------------------------------------------------------------------------
 
 Bottle uses the `charset` parameter of the ``Content-Type`` header to decide how to encode unicode strings. This header defaults to ``text/html; charset=UTF8`` and can be changed using the :attr:`Response.content_type` attribute or by setting the :attr:`Response.charset` attribute directly. (The :class:`Response` object is described in the section :ref:`tutorial-response`.)
 
@@ -324,7 +348,7 @@ In some rare cases the Python encoding names differ from the names supported by 
 .. _tutorial-static-files:
 
 Static Files
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 You can directly return file objects, but :func:`static_file` is the recommended way to serve static files. It automatically guesses a mime-type, adds a ``Last-Modified`` header, restricts paths to a ``root`` directory for security reasons and generates appropriate error responses (401 on permission errors, 404 on missing files). It even supports the ``If-Modified-Since`` header and eventually generates a ``304 Not Modified`` response. You can pass a custom mimetype to disable mimetype guessing.
 
@@ -354,7 +378,7 @@ If the ``download`` parameter is just ``True``, the original filename is used.
 .. _tutorial-error:
 
 HTTP Errors and Redirects
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 The :func:`abort` function is a shortcut for generating HTTP error pages.
 
@@ -385,7 +409,7 @@ All exceptions other than :exc:`HTTPResponse` or :exc:`HTTPError` will result in
 .. _tutorial-response:
 
 The :class:`Response` Object
---------------------------------------------------------------------------------
+==============================================================================
 
 Response metadata such as the HTTP status code, response headers and cookies are stored in an object called :data:`response` up to the point where they are transmitted to the browser. You can manipulate these metadata directly or use the predefined helper methods to do so. The full API and feature list is described in the API section (see :class:`Response`), but the most common use cases and features are covered here, too.
 
