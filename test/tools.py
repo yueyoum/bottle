@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 import bottle
-import threading
 import sys
-import time
 import unittest
 import wsgiref
-import wsgiref.simple_server
 import wsgiref.util
 import wsgiref.validate
 
 import mimetypes
 import uuid
 
-from bottle import tob, BytesIO
+from bottle import tob, tonat, BytesIO, py3k, unicode
 
 def warn(msg):
     sys.stderr.write('WARNING: %s\n' % msg.strip())
@@ -20,6 +17,32 @@ def warn(msg):
 def tobs(data):
     ''' Transforms bytes or unicode into a byte stream. '''
     return BytesIO(tob(data))
+
+def api(introduced, deprecated=None, removed=None):
+    current    = tuple(map(int, bottle.__version__.split('-')[0].split('.')))
+    introduced = tuple(map(int, introduced.split('.')))
+    deprecated = tuple(map(int, deprecated.split('.'))) if deprecated else (99,99)
+    removed    = tuple(map(int, removed.split('.')))    if removed    else (99,100)
+    assert introduced < deprecated < removed
+
+    def decorator(func):
+        if   current < introduced:
+            return None
+        elif current < deprecated:
+            return func
+        elif current < removed:
+            func.__doc__ = '(deprecated) ' + (func.__doc__ or '')
+            return func
+        else:
+            return None
+    return decorator
+
+
+def wsgistr(s):
+    if py3k:
+        return s.encode('utf8').decode('latin1')
+    else:
+        return s
 
 class ServerTestBase(unittest.TestCase):
     def setUp(self):
@@ -42,9 +65,9 @@ class ServerTestBase(unittest.TestCase):
                     result['header'][name] = value
         env = env if env else {}
         wsgiref.util.setup_testing_defaults(env)
-        env['REQUEST_METHOD'] = method.upper().strip()
-        env['PATH_INFO'] = path
-        env['QUERY_STRING'] = ''
+        env['REQUEST_METHOD'] = wsgistr(method.upper().strip())
+        env['PATH_INFO'] = wsgistr(path)
+        env['QUERY_STRING'] = wsgistr('')
         if post:
             env['REQUEST_METHOD'] = 'POST'
             env['CONTENT_LENGTH'] = str(len(tob(post)))
@@ -103,14 +126,14 @@ def multipart_environ(fields, files):
         body += 'Content-Disposition: form-data; name="%s"\n\n' % name
         body += value + '\n'
     for name, filename, content in files:
-        mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        mimetype = str(mimetypes.guess_type(filename)[0]) or 'application/octet-stream'
         body += boundary + '\n'
         body += 'Content-Disposition: file; name="%s"; filename="%s"\n' % \
              (name, filename)
         body += 'Content-Type: %s\n\n' % mimetype
         body += content + '\n'
     body += boundary + '--\n'
-    if hasattr(body, 'encode'):
+    if isinstance(body, unicode):
         body = body.encode('utf8')
     env['CONTENT_LENGTH'] = str(len(body))
     env['wsgi.input'].write(body)

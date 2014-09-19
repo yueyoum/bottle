@@ -1,6 +1,6 @@
 import bottle
 from tools import ServerTestBase
-from bottle import Bottle, response
+from bottle import response
 
 class TestAppMounting(ServerTestBase):
     def setUp(self):
@@ -10,6 +10,16 @@ class TestAppMounting(ServerTestBase):
         @self.subapp.route('/test/:test')
         def test(test='foo'):
             return test
+
+
+    def test_mount_order_bug581(self):
+        self.app.mount('/test/', self.subapp)
+
+        # This should not match
+        self.app.route('/<test:path>', callback=lambda test: test)
+
+        self.assertStatus(200, '/test/')
+        self.assertBody('foo', '/test/')
 
     def test_mount(self):
         self.app.mount('/test/', self.subapp)
@@ -23,10 +33,10 @@ class TestAppMounting(ServerTestBase):
     def test_mount_meta(self):
         self.app.mount('/test/', self.subapp)
         self.assertEqual(
-            self.app.routes[0].config.mountpoint['prefix'],
+            self.app.routes[0].config['mountpoint.prefix'],
             '/test/')
         self.assertEqual(
-            self.app.routes[0].config.mountpoint['target'],
+            self.app.routes[0].config['mountpoint.target'],
             self.subapp)
 
     def test_no_slash_prefix(self):

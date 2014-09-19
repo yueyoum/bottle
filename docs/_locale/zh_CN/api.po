@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Bottle 0.12-dev\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-07 12:33\n"
+"POT-Creation-Date: 2013-08-09 17:22\n"
 "PO-Revision-Date: 2012-11-09 16:39+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -266,6 +266,11 @@ msgid ""
 "`input_encoding`. Some libraries (e.g. WTForms) want a unicode dictionary."
 msgstr ""
 
+# 7fc82cc9c0834b7da08e3b3860e1a9d6
+#: ../../../bottle.py:docstring of bottle.FormsDict.getunicode:1
+msgid "Return the value as a unicode string, or the default."
+msgstr ""
+
 # 19ac58e686224a19b67845c5061582f2
 #: ../../../bottle.py:docstring of bottle.WSGIHeaderDict:1
 msgid ""
@@ -357,8 +362,56 @@ msgstr ""
 msgid "Find a resource and return a file object, or raise IOError."
 msgstr ""
 
+# fcec5a93e13a48b68e251a6a8f94d74f
+#: ../../../bottle.py:docstring of bottle.FileUpload.file:1
+msgid "Open file(-like) object (BytesIO buffer or temporary file)"
+msgstr ""
+
+# 48ffa5c976f245d0becc21a9e2c62bb6
+#: ../../../bottle.py:docstring of bottle.FileUpload.name:1
+msgid "Name of the upload form field"
+msgstr ""
+
+# 2a94d248a0804134b8b2950ee6872a16
+#: ../../../bottle.py:docstring of bottle.FileUpload.raw_filename:1
+msgid "Raw filename as sent by the client (may contain unsafe characters)"
+msgstr ""
+
+# e6845621bb9d42ccba141441bc8a5bc5
+#: ../../../bottle.py:docstring of bottle.FileUpload.headers:1
+msgid "A :class:`HeaderDict` with additional headers (e.g. content-type)"
+msgstr ""
+
+# ec33f9a869df439ab4ca59a460350271
+#: ../../../bottle.py:docstring of bottle.FileUpload.content_type:1
+#: bottle.BaseResponse.content_type:1
+msgid "Current value of the 'Content-Type' header."
+msgstr ""
+
+# 001c6d13b2db4841b81f6b23b55a4fcb
+#: ../../../bottle.py:docstring of bottle.FileUpload.content_length:1
+#: bottle.BaseResponse.content_length:1
+msgid "Current value of the 'Content-Length' header."
+msgstr ""
+
+# 44d2df642fd545b08b622a73a84bd9e6
+#: ../../../bottle.py:docstring of bottle.FileUpload.filename:1
+msgid ""
+"Name of the file on the client file system, but normalized to ensure file "
+"system compatibility (lowercase, no whitespace, no path separators, no "
+"unsafe characters, ASCII only). An empty filename is returned as 'empty'."
+msgstr ""
+
+# ba76ee38fe954b458ba7e961b3caad15
+#: ../../../bottle.py:docstring of bottle.FileUpload.save:1
+msgid ""
+"Save file to disk or copy its content to an open file(-like) object. If "
+"*destination* is a directory, :attr:`filename` is added to the path. "
+"Existing files are not overwritten by default (IOError)."
+msgstr ""
+
 # 841c0e821e284d91b7b014ab046f0b29
-#: ../../api.rst:105
+#: ../../api.rst:108
 msgid "Exceptions"
 msgstr ""
 
@@ -368,7 +421,7 @@ msgid "A base class for exceptions used by bottle."
 msgstr ""
 
 # acafc1e6403e44b4bd5821201cdb82fa
-#: ../../api.rst:113
+#: ../../api.rst:116
 msgid "The :class:`Bottle` Class"
 msgstr ""
 
@@ -380,9 +433,9 @@ msgid ""
 "Instances are callable WSGI applications."
 msgstr ""
 
-# c85fb189289d4452994f37a93d29aa04
-#: ../../../bottle.py:docstring of bottle.Bottle.catchall:1
-msgid "If true, most exceptions are caught and returned as :exc:`HTTPError`"
+# e316cd279454454186fd767fe6663083
+#: ../../../bottle.py:docstring of bottle.Bottle.config:1
+msgid "A :class:`ConfigDict` for app specific configuration."
 msgstr ""
 
 # a54618bbe184416ea06fe641e3bc581f
@@ -390,9 +443,63 @@ msgstr ""
 msgid "A :class:`ResourceManager` for application files"
 msgstr ""
 
-# e316cd279454454186fd767fe6663083
-#: ../../../bottle.py:docstring of bottle.Bottle.config:1
-msgid "A :class:`ConfigDict` for app specific configuration."
+# c85fb189289d4452994f37a93d29aa04
+#: ../../../bottle.py:docstring of bottle.Bottle.catchall:1
+msgid "If true, most exceptions are caught and returned as :exc:`HTTPError`"
+msgstr ""
+
+# a153859ed6604e65ba9a9681e700a76f
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:1
+msgid "Attach a callback to a hook. Three hooks are currently implemented:"
+msgstr ""
+
+# 6dc152c60013420abdb297caa28a3813
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:4
+msgid "before_request"
+msgstr ""
+
+# 70abd3193e50425e82f98b3f68d4e4dc
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:4
+msgid ""
+"Executed once before each request. The request context is available, but no "
+"routing has happened yet."
+msgstr ""
+
+# b8d91a10af2343399eaa8574f904e5d9
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:6
+msgid "after_request"
+msgstr ""
+
+# 0e85cfc0a3bb4d9b97b68ae264a44ee3
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:7
+msgid "Executed once after each request regardless of its outcome."
+msgstr ""
+
+# b580af375d614432bd1ac5e0f35f18fd
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:8
+msgid "app_reset"
+msgstr ""
+
+# 9ce7e89d4e41419e85f0d9c338117c8c
+#: ../../../bottle.py:docstring of bottle.Bottle.add_hook:9
+msgid "Called whenever :meth:`Bottle.reset` is called."
+msgstr ""
+
+# 145ccba16d8f47729e885aa264b33a8f
+#: ../../../bottle.py:docstring of bottle.Bottle.remove_hook:1
+msgid "Remove a callback from a hook."
+msgstr ""
+
+# 55678852dd1541bda6a38d2d4f7902c0
+#: ../../../bottle.py:docstring of bottle.Bottle.trigger_hook:1
+msgid "Trigger a hook and return a list of results."
+msgstr ""
+
+# ec7d6127e3f44524bf25ce39f47a1fc8
+#: ../../../bottle.py:docstring of bottle.Bottle.hook:1
+msgid ""
+"Return a decorator that attaches a callback to a hook. See :meth:`add_hook` "
+"for details."
 msgstr ""
 
 # c071e835d9914cd1a24b606e57fc6e12
@@ -432,11 +539,6 @@ msgid ""
 "plugins. Return the list of removed plugins."
 msgstr ""
 
-# 9d904857add44dacbd2351fa34a9416d
-#: ../../../bottle.py:docstring of bottle.Bottle.run:1
-msgid "Calls :func:`run` with the same parameters."
-msgstr ""
-
 # b0f6b824b5bb48f5a73ce8df7cf1ecd2
 #: ../../../bottle.py:docstring of bottle.Bottle.reset:1
 msgid ""
@@ -447,6 +549,11 @@ msgstr ""
 # ea0b9e9a1cd845499900b9ae0650c1c9
 #: ../../../bottle.py:docstring of bottle.Bottle.close:1
 msgid "Close the application and all installed plugins."
+msgstr ""
+
+# 9d904857add44dacbd2351fa34a9416d
+#: ../../../bottle.py:docstring of bottle.Bottle.run:1
+msgid "Calls :func:`run` with the same parameters."
 msgstr ""
 
 # 579b86a9a0e74698b0bfa8685ae73562
@@ -508,28 +615,6 @@ msgstr ""
 # be193cc1118748e588bda1eb93dc0b18
 #: ../../../bottle.py:docstring of bottle.Bottle.error:1
 msgid "Decorator: Register an output handler for a HTTP error code"
-msgstr ""
-
-# bc2a9725b7f94b73b42a8e5fbce11b4d
-#: ../../../bottle.py:docstring of bottle.Bottle.hook:1
-msgid ""
-"Return a decorator that attaches a callback to a hook. Three hooks are "
-"currently implemented:"
-msgstr ""
-
-# 9446e9988ad04e32a3f845c2cfe72702
-#: ../../../bottle.py:docstring of bottle.Bottle.hook:4
-msgid "before_request: Executed once before each request"
-msgstr ""
-
-# af26921a8b0a4fa0bef662aa538efe5a
-#: ../../../bottle.py:docstring of bottle.Bottle.hook:5
-msgid "after_request: Executed once after each request"
-msgstr ""
-
-# 664f8d1ae37e42e0a05781ac76005049
-#: ../../../bottle.py:docstring of bottle.Bottle.hook:6
-msgid "app_reset: Called whenever :meth:`reset` is called."
 msgstr ""
 
 # ae4266c2a37f43f1b1fd10db27745ebf
@@ -599,6 +684,13 @@ msgid ""
 "and meta-data."
 msgstr ""
 
+# 0943215c952f4b53b91d4630599c798c
+#: ../../../bottle.py:docstring of bottle.Route.call:1
+msgid ""
+"The route callback with all plugins applied. This property is created on "
+"demand and then cached to speed up subsequent requests."
+msgstr ""
+
 # 498d6f0a85a541eba29a8f48855750f7
 #: ../../../bottle.py:docstring of bottle.Route.reset:1
 msgid ""
@@ -616,13 +708,35 @@ msgstr ""
 msgid "Yield all Plugins affecting this route."
 msgstr ""
 
+# 1ec3c38fbcb849b1b43263e370ffd136
+#: ../../../bottle.py:docstring of bottle.Route.get_undecorated_callback:1
+msgid ""
+"Return the callback. If the callback is a decorated function, try to recover "
+"the original function."
+msgstr ""
+
+# d3c5328a4cab44989c52d2127b3544b4
+#: ../../../bottle.py:docstring of bottle.Route.get_callback_args:1
+msgid ""
+"Return a list of argument names the callback (most likely) accepts as "
+"keyword arguments. If the callback is a decorated function, try to recover "
+"the original function before inspection."
+msgstr ""
+
+# 96aa046ca3da4f6e8ee873d30bba2a36
+#: ../../../bottle.py:docstring of bottle.Route.get_config:1
+msgid ""
+"Lookup a config field and return its value, first checking the route.config, "
+"then route.app.config."
+msgstr ""
+
 # 62603aa4019e4732a6caa0083f27ceee
-#: ../../api.rst:123
+#: ../../api.rst:126
 msgid "The :class:`Request` Object"
 msgstr ""
 
 # 39128b7c74ed400e9a103a6b37e84b43
-#: ../../api.rst:125
+#: ../../api.rst:128
 msgid ""
 "The :class:`Request` class wraps a WSGI environment and provides helpful "
 "methods to parse and access form data, cookies, file uploads and other "
@@ -664,6 +778,16 @@ msgstr ""
 # af4ebeade1b94633be302638a1c5d543
 #: ../../../bottle.py:docstring of bottle.BaseRequest.app:1
 msgid "Bottle application handling this request."
+msgstr ""
+
+# c41f7380550042b4ac7111a188a88f77
+#: ../../../bottle.py:docstring of bottle.BaseRequest.route:1
+msgid "The bottle :class:`Route` object that matches this request."
+msgstr ""
+
+# 0aeb079900744334aebdf19893cc043c
+#: ../../../bottle.py:docstring of bottle.BaseRequest.url_args:1
+msgid "The arguments extracted from the URL."
 msgstr ""
 
 # 037aee056fb248628a52cf2447ab4c82
@@ -733,29 +857,8 @@ msgstr ""
 # 7e4b95b0b3054f54a33b518c161f0f86
 #: ../../../bottle.py:docstring of bottle.BaseRequest.files:1
 msgid ""
-"File uploads parsed from an `url-encoded` or `multipart/form-data` encoded "
-"POST or PUT request body. The values are instances of :class:`cgi."
-"FieldStorage`. The most important attributes are:"
-msgstr ""
-
-# 118bf5eae0a947848d43ef5c945cd3a4
-#: ../../../bottle.py:docstring of bottle.BaseRequest.files:6
-msgid ""
-"The filename, if specified; otherwise None; this is the client side "
-"filename, *not* the file name on which it is stored (that's a temporary file "
-"you don't deal with)"
-msgstr ""
-
-# fcec5a93e13a48b68e251a6a8f94d74f
-#: ../../../bottle.py:docstring of bottle.BaseRequest.files:10
-msgid "The file(-like) object from which you can read the data."
-msgstr ""
-
-# 58d08039baa3464d9ec39e3d8c603d19
-#: ../../../bottle.py:docstring of bottle.BaseRequest.files:12
-msgid ""
-"The value as a *string*; for file uploads, this transparently reads the file "
-"every time you request the value. Do not do this on big files."
+"File uploads parsed from `multipart/form-data` encoded POST or PUT request "
+"body. The values are instances of :class:`FileUpload`."
 msgstr ""
 
 # 0d0624fb0853462aab441d63adc1a3be
@@ -894,7 +997,7 @@ msgid "Return a new :class:`Request` with a shallow :attr:`environ` copy."
 msgstr ""
 
 # 21846efc4aa7410cbe609eaf42910736
-#: ../../api.rst:133
+#: ../../api.rst:136
 msgid ""
 "The module-level :data:`bottle.request` is a proxy object (implemented in :"
 "class:`LocalRequest`) and always refers to the `current` request, or in "
@@ -924,12 +1027,12 @@ msgid "Thread-local property stored in :data:`_lctx.request_environ`"
 msgstr ""
 
 # 106092478f51479997b74ebeccd2ea06
-#: ../../api.rst:140
+#: ../../api.rst:145
 msgid "The :class:`Response` Object"
 msgstr ""
 
 # bde46b3aad08469aa59a263616041959
-#: ../../api.rst:142
+#: ../../api.rst:147
 msgid ""
 "The :class:`Response` class stores the HTTP status code as well as headers "
 "and cookies that are to be sent to the client. Similar to :data:`bottle."
@@ -1021,14 +1124,9 @@ msgstr ""
 msgid "WSGI conform list of (header, value) tuples."
 msgstr ""
 
-# ec33f9a869df439ab4ca59a460350271
-#: ../../../bottle.py:docstring of bottle.BaseResponse.content_type:1
-msgid "Current value of the 'Content-Type' header."
-msgstr ""
-
-# 001c6d13b2db4841b81f6b23b55a4fcb
-#: ../../../bottle.py:docstring of bottle.BaseResponse.content_length:1
-msgid "Current value of the 'Content-Length' header."
+# 899832cd9ab0434481ab7dfa4a482d79
+#: ../../../bottle.py:docstring of bottle.BaseResponse.expires:1
+msgid "Current value of the 'Expires' header."
 msgstr ""
 
 # c9a8f8c5c29c4dfdbd5c77e910133ed9
@@ -1104,7 +1202,7 @@ msgid "Thread-local property stored in :data:`_lctx.response_body`"
 msgstr ""
 
 # 8ca709f8313b482da65c7268859ae250
-#: ../../api.rst:154
+#: ../../api.rst:159
 msgid ""
 "The following two classes can be raised as an exception. The most noticeable "
 "difference is that bottle invokes error handlers for :class:`HTTPError`, but "
@@ -1117,12 +1215,12 @@ msgid "Alias for .body"
 msgstr ""
 
 # 50180b5649a744c987ed84c266b7a9bd
-#: ../../api.rst:166
+#: ../../api.rst:171
 msgid "Templates"
 msgstr ""
 
 # b4f775e4de0b4249b8e33108e33a7a49
-#: ../../api.rst:168
+#: ../../api.rst:173
 msgid ""
 "All template engines supported by :mod:`bottle` implement the :class:"
 "`BaseTemplate` API. This way it is possible to switch and mix template "
@@ -1171,7 +1269,7 @@ msgid ""
 "Render the template with the specified local variables and return a single "
 "byte or unicode string. If it is a byte string, the encoding must match self."
 "encoding. This method must be thread-safe! Local variables may be provided "
-"in dictionaries (*args) or directly, as keywords (**kwargs)."
+"in dictionaries (args) or directly, as keywords (kwargs)."
 msgstr ""
 
 # 6b1c141cf449499b9ae972b7975d2a3b
@@ -1204,7 +1302,7 @@ msgid ""
 msgstr ""
 
 # 24d18841c1104f21bc1e523a11d37f9b
-#: ../../api.rst:179
+#: ../../api.rst:184
 msgid ""
 "You can write your own adapter for your favourite template engine or use one "
 "of the predefined adapters. Currently there are four fully supported "
@@ -1212,107 +1310,107 @@ msgid ""
 msgstr ""
 
 # 0b18f89b92bd47cea75484f063b4a305
-#: ../../api.rst:182
+#: ../../api.rst:187
 msgid "Class"
 msgstr ""
 
 # e61c4e15bcac42e4b82f9dca7f257058
-#: ../../api.rst:182
+#: ../../api.rst:187
 msgid "URL"
 msgstr ""
 
 # 1d62c00724264840af5a38445a2f2046
-#: ../../api.rst:182
+#: ../../api.rst:187
 msgid "Decorator"
 msgstr ""
 
 # f358c8038cb54d25a612ce662ac57e66
-#: ../../api.rst:182
+#: ../../api.rst:187
 msgid "Render function"
 msgstr ""
 
 # b53044adf2c64defa1fc407003b81f86
-#: ../../api.rst:184
+#: ../../api.rst:189
 msgid ":class:`SimpleTemplate`"
 msgstr ""
 
 # a1a04a507e14417ab3539197b18afa4b
-#: ../../api.rst:184
+#: ../../api.rst:189
 msgid ":doc:`stpl`"
 msgstr ""
 
 # 33dca0a76e23412abee840c3dbd6dcf6
-#: ../../api.rst:184
+#: ../../api.rst:189
 msgid ":func:`view`"
 msgstr ""
 
 # 1e86243291384e2d92ed890830d4d338
-#: ../../api.rst:184
+#: ../../api.rst:189
 msgid ":func:`template`"
 msgstr ""
 
 # 4d3a8eb5e32d40fda44342622bba81b8
-#: ../../api.rst:185
+#: ../../api.rst:190
 msgid ":class:`MakoTemplate`"
 msgstr ""
 
 # 6c423025f4cb4d4a801b605bafecb026
-#: ../../api.rst:185
+#: ../../api.rst:190
 msgid "http://www.makotemplates.org"
 msgstr ""
 
 # bc162e8800634503978fee1cfc325f3c
-#: ../../api.rst:185
+#: ../../api.rst:190
 msgid ":func:`mako_view`"
 msgstr ""
 
 # e777be7d76044134b1b534e5612a397f
-#: ../../api.rst:185
+#: ../../api.rst:190
 msgid ":func:`mako_template`"
 msgstr ""
 
 # 1169be7e540d4b028108f0437d1fb791
-#: ../../api.rst:186
+#: ../../api.rst:191
 msgid ":class:`CheetahTemplate`"
 msgstr ""
 
 # 81026d25ce3948468a6e4f7ff2eb49ac
-#: ../../api.rst:186
+#: ../../api.rst:191
 msgid "http://www.cheetahtemplate.org/"
 msgstr ""
 
 # a5003711086e4b729b97068f1d5e3d93
-#: ../../api.rst:186
+#: ../../api.rst:191
 msgid ":func:`cheetah_view`"
 msgstr ""
 
 # 41355d3738e145589e85992557dd818e
-#: ../../api.rst:186
+#: ../../api.rst:191
 msgid ":func:`cheetah_template`"
 msgstr ""
 
 # 4cecefe7caf84f7bbbf14deba520fd62
-#: ../../api.rst:187
+#: ../../api.rst:192
 msgid ":class:`Jinja2Template`"
 msgstr ""
 
 # a2dc200da35848f5b9b36d8d0cea1f33
-#: ../../api.rst:187
+#: ../../api.rst:192
 msgid "http://jinja.pocoo.org/"
 msgstr ""
 
 # 19500baf956c445fac89420ee8b30d57
-#: ../../api.rst:187
+#: ../../api.rst:192
 msgid ":func:`jinja2_view`"
 msgstr ""
 
 # 1a5f61a4b9aa4aa0a2933ef65e5cb88f
-#: ../../api.rst:187
+#: ../../api.rst:192
 msgid ":func:`jinja2_template`"
 msgstr ""
 
 # a113494ab5c348cdbb1d5c7b9533f062
-#: ../../api.rst:190
+#: ../../api.rst:195
 msgid ""
 "To use :class:`MakoTemplate` as your default template engine, just import "
 "its specialised decorator and render function::"

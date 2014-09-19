@@ -49,6 +49,7 @@ Bottle maintains a stack of :class:`Bottle` instances (see :func:`app` and :clas
               post(...)
               put(...)
               delete(...)
+              patch(...)
 
    Decorator to install a route to the current default application. See :meth:`Bottle.route` for details.
 
@@ -101,6 +102,9 @@ Data Structures
 .. autoclass:: ResourceManager
    :members:
 
+.. autoclass:: FileUpload
+   :members:
+
 Exceptions
 ---------------
 
@@ -135,6 +139,8 @@ The module-level :data:`bottle.request` is a proxy object (implemented in :class
 .. autoclass:: LocalRequest
    :members:
 
+
+.. autodata:: request
 
 The :class:`Response` Object
 ===================================================

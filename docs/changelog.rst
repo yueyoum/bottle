@@ -5,18 +5,29 @@
 Release Notes and Changelog
 ===========================
 
-Release 0.11
+Release 0.13
 ==============
 
 .. warning: Not released yet.
 
-* The new :meth:`BaseRequest.route` property returns the :class:`Route` that matched the request.
+* Added :func:`patch` shortcut for `route(..., method='PATCH')`
+
+
+Release 0.12
+==============
+
+* New SimpleTemplate parser implementation
+  * Support for multi-line code blocks (`<% ... %>`).
+  * The keywords `include` and `rebase` are functions now and can accept variable template names.
+* The new :meth:`BaseRequest.route` property returns the :class:`Route` that originally matched the request.
+* Removed the ``BaseRequest.MAX_PARAMS`` limit. The hash collision bug in CPythons dict() implementation was fixed over a year ago. If you are still using Python 2.5 in production, consider upgrading or at least make sure that you get security fixed from your distributor.
+* New :class:`ConfigDict` API (see :doc:`configuration`)
+
+More information can be found in this `development blog post <http://blog.bottlepy.org/2013/07/19/preview-bottle-012.html>`_.
 
 
 Release 0.11
 ==============
-
-.. warning: Not released yet.
 
 * Native support for Python 2.x and 3.x syntax. No need to run 2to3 anymore.
 * Support for partial downloads (``Range`` header) in :func:`static_file`.
@@ -60,7 +71,7 @@ Release 0.10
   * A new route syntax (e.g. ``/object/<id:int>``) and support for route wildcard filters.
   * Four new wildcard filters: `int`, `float`, `path` and `re`.
 
-* Oher changes
+* Other changes
 
   * Added command line interface to load applications and start servers.
   * Introduced a :class:`ConfigDict` that makes accessing configuration a lot easier (attribute access and auto-expanding namespaces).

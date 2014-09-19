@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import with_statement
 import unittest
-import sys, os.path
 import bottle
 from tools import ServerTestBase
 from bottle import tob
@@ -89,10 +89,10 @@ class TestWsgi(ServerTestBase):
         self.assertStatus(500, '/')
 
     def test_utf8_url(self):
-        """ WSGI: Exceptions within handler code (HTTP 500) """
-        @bottle.route('/my/:string')
+        """ WSGI: UTF-8 Characters in the URL """
+        @bottle.route('/my-öäü/:string')
         def test(string): return string
-        self.assertBody(tob('urf8-öäü'), '/my/urf8-öäü')
+        self.assertBody(tob('urf8-öäü'), '/my-öäü/urf8-öäü')
 
     def test_utf8_404(self):
         self.assertStatus(404, '/not-found/urf8-öäü')
@@ -250,14 +250,14 @@ class TestRouteDecorator(ServerTestBase):
         self.assertBody('test 5 6', '/test')
 
     def test_template_opts(self):
-        @bottle.route(template='test {{a}} {{b}}', template_opts={'b': 6})
+        @bottle.route(template=('test {{a}} {{b}}', {'b': 6}))
         def test(): return dict(a=5)
         self.assertBody('test 5 6', '/test')
 
     def test_name(self):
         @bottle.route(name='foo')
         def test(x=5): return 'ok'
-        self.assertEquals('/test/6', bottle.url('foo', x=6))
+        self.assertEqual('/test/6', bottle.url('foo', x=6))
 
     def test_callback(self):
         def test(x=5): return str(x)
@@ -326,16 +326,24 @@ class TestDecorators(ServerTestBase):
         def d(x, y=5): pass
         def e(x=5, y=6): pass
         self.assertEqual(['/a'],list(bottle.yieldroutes(a)))
-        self.assertEqual(['/b/:x'],list(bottle.yieldroutes(b)))
-        self.assertEqual(['/c/:x/:y'],list(bottle.yieldroutes(c)))
-        self.assertEqual(['/d/:x','/d/:x/:y'],list(bottle.yieldroutes(d)))
-        self.assertEqual(['/e','/e/:x','/e/:x/:y'],list(bottle.yieldroutes(e)))
+        self.assertEqual(['/b/<x>'],list(bottle.yieldroutes(b)))
+        self.assertEqual(['/c/<x>/<y>'],list(bottle.yieldroutes(c)))
+        self.assertEqual(['/d/<x>','/d/<x>/<y>'],list(bottle.yieldroutes(d)))
+        self.assertEqual(['/e','/e/<x>','/e/<x>/<y>'],list(bottle.yieldroutes(e)))
 
 
 
 class TestAppShortcuts(ServerTestBase):
     def setUp(self):
         ServerTestBase.setUp(self)
+        
+    def testWithStatement(self):
+        default = bottle.default_app()
+        inner_app = bottle.Bottle()
+        self.assertEqual(default, bottle.default_app())
+        with inner_app:
+            self.assertEqual(inner_app, bottle.default_app())
+        self.assertEqual(default, bottle.default_app())
 
     def assertWraps(self, test, other):
         self.assertEqual(test.__doc__, other.__doc__)

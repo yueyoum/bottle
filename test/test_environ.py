@@ -2,19 +2,18 @@
 ''' Tests for the BaseRequest and BaseResponse objects and their subclasses. '''
 
 import unittest
-import sys, os.path
+import sys
 import bottle
-from bottle import request, response, tob, touni, tonat, json_dumps, _e, HTTPError
+from bottle import request, tob, touni, tonat, json_dumps, _e, HTTPError, parse_date
 import tools
 import wsgiref.util
-import threading
 import base64
 
 from bottle import BaseRequest, BaseResponse, LocalRequest
 
 class TestRequest(unittest.TestCase):
 
-    def test_app(self):
+    def test_app_property(self):
         e = {}
         r = BaseRequest(e)
         self.assertRaises(RuntimeError, lambda: r.app)
@@ -25,6 +24,13 @@ class TestRequest(unittest.TestCase):
         e = {'bottle.route': 5}
         r = BaseRequest(e)
         self.assertEqual(r.route, 5)
+
+    def test_url_for_property(self):
+        e = {}
+        r = BaseRequest(e)
+        self.assertRaises(RuntimeError, lambda: r.url_args)
+        e.update({'route.url_args': {'a': 5}})
+        self.assertEqual(r.url_args, {'a': 5})
 
     def test_path(self):
         """ PATH_INFO normalization. """
@@ -273,10 +279,44 @@ class TestRequest(unittest.TestCase):
         self.assertEqual(42, len(request.body.readline()))
         self.assertEqual(42, len(request.body.readline(1024)))
 
+    def _test_chunked(self, body, expect):
+        e = {}
+        wsgiref.util.setup_testing_defaults(e)
+        e['wsgi.input'].write(tob(body))
+        e['wsgi.input'].seek(0)
+        e['HTTP_TRANSFER_ENCODING'] = 'chunked'
+        if isinstance(expect, str):
+            self.assertEqual(tob(expect), BaseRequest(e).body.read())
+        else:
+            self.assertRaises(expect, lambda: BaseRequest(e).body)
+
+    def test_chunked(self):
+        self._test_chunked('1\r\nx\r\nff\r\n' + 'y'*255 + '\r\n0\r\n',
+                           'x' + 'y'*255)
+        self._test_chunked('8\r\nxxxxxxxx\r\n0\r\n','xxxxxxxx')
+        self._test_chunked('0\r\n', '')
+
+    def test_chunked_meta_fields(self):
+        self._test_chunked('8 ; foo\r\nxxxxxxxx\r\n0\r\n','xxxxxxxx')
+        self._test_chunked('8;foo\r\nxxxxxxxx\r\n0\r\n','xxxxxxxx')
+        self._test_chunked('8;foo=bar\r\nxxxxxxxx\r\n0\r\n','xxxxxxxx')
+
+    def test_chunked_not_terminated(self):
+        self._test_chunked('1\r\nx\r\n', HTTPError)
+
+    def test_chunked_wrong_size(self):
+        self._test_chunked('2\r\nx\r\n', HTTPError)
+
+    def test_chunked_illegal_size(self):
+        self._test_chunked('x\r\nx\r\n', HTTPError)
+
+    def test_chunked_not_chunked_at_all(self):
+        self._test_chunked('abcdef', HTTPError)
+
     def test_multipart(self):
         """ Environ: POST (multipart files and multible values per key) """
         fields = [('field1','value1'), ('field2','value2'), ('field2','value3')]
-        files = [('file1','filename1.txt','content1'), ('file2','filename2.py',touni('ä\nö\rü'))]
+        files = [('file1','filename1.txt','content1'), ('万难','万难foo.py', 'ä\nö\rü')]
         e = tools.multipart_environ(fields=fields, files=files)
         request = BaseRequest(e)
         # File content
@@ -286,16 +326,16 @@ class TestRequest(unittest.TestCase):
         cmp = tob('content1') if sys.version_info >= (3,2,0) else 'content1'
         self.assertEqual(cmp, request.POST['file1'].file.read())
         # File name and meta data
-        self.assertTrue('file2' in request.POST)
-        self.assertTrue('file2' in request.files)
-        self.assertTrue('file2' not in request.forms)
-        self.assertEqual('filename2.py', request.POST['file2'].filename)
-        self.assertTrue(request.files.file2)
+        self.assertTrue('万难' in request.POST)
+        self.assertTrue('万难' in request.files)
+        self.assertTrue('万难' not in request.forms)
+        self.assertEqual('foo.py', request.POST['万难'].filename)
+        self.assertTrue(request.files['万难'])
         self.assertFalse(request.files.file77)
         # UTF-8 files
-        x = request.POST['file2'].file.read()
+        x = request.POST['万难'].file.read()
         if (3,2,0) > sys.version_info >= (3,0,0):
-            x = x.encode('ISO-8859-1')
+            x = x.encode('utf8')
         self.assertEqual(tob('ä\nö\rü'), x)
         # No file
         self.assertTrue('file3' not in request.POST)
@@ -345,6 +385,23 @@ class TestRequest(unittest.TestCase):
         e['CONTENT_LENGTH'] = str(len(json_dumps(test)))
         self.assertEqual(BaseRequest(e).json, test)
 
+    def test_json_forged_header_issue616(self):
+        test = dict(a=5, b='test', c=[1,2,3])
+        e = {'CONTENT_TYPE': 'text/plain;application/json'}
+        wsgiref.util.setup_testing_defaults(e)
+        e['wsgi.input'].write(tob(json_dumps(test)))
+        e['wsgi.input'].seek(0)
+        e['CONTENT_LENGTH'] = str(len(json_dumps(test)))
+        self.assertEqual(BaseRequest(e).json, None)
+
+    def test_json_header_empty_body(self):
+        """Request Content-Type is application/json but body is empty"""
+        e = {'CONTENT_TYPE': 'application/json'}
+        wsgiref.util.setup_testing_defaults(e)
+        wsgiref.util.setup_testing_defaults(e)
+        e['CONTENT_LENGTH'] = "0"
+        self.assertEqual(BaseRequest(e).json, None)
+
     def test_isajax(self):
         e = {}
         wsgiref.util.setup_testing_defaults(e)
@@ -385,27 +442,6 @@ class TestRequest(unittest.TestCase):
         self.assertEqual(r.remote_addr, ips[0])
         del r.environ['HTTP_X_FORWARDED_FOR']
         self.assertEqual(r.remote_addr, ips[1])
-
-    def test_maxparam(self):
-        ips = ['1.2.3.4', '2.3.4.5', '3.4.5.6']
-        e = {}
-        wsgiref.util.setup_testing_defaults(e)
-        e['wsgi.input'].write(tob('a=a&b=b&c=c'))
-        e['wsgi.input'].seek(0)
-        e['CONTENT_LENGTH'] = '11'
-        e['REQUEST_METHOD'] = "POST"
-        e['HTTP_COOKIE'] = 'a=1;b=1;c=1;d=1'
-        e['QUERY_STRING'] = 'a&b&c&d'
-        old_value = BaseRequest.MAX_PARAMS
-        r = BaseRequest(e)
-        try:
-            BaseRequest.MAX_PARAMS = 2
-            self.assertRaises(HTTPError, lambda: r.query)
-            self.assertRaises(HTTPError, lambda: r.cookies)
-            self.assertRaises(HTTPError, lambda: r.forms)
-            self.assertRaises(HTTPError, lambda: r.params)
-        finally:
-            BaseRequest.MAX_PARAMS = old_value
 
     def test_user_defined_attributes(self):
         for cls in (BaseRequest, LocalRequest):
@@ -529,7 +565,7 @@ class TestResponse(unittest.TestCase):
     def test_content_type(self):
         rs = BaseResponse()
         rs.content_type = 'test/some'
-        self.assertEquals('test/some', rs.headers.get('Content-Type'))
+        self.assertEqual('test/some', rs.headers.get('Content-Type'))
 
     def test_charset(self):
         rs = BaseResponse()
@@ -619,7 +655,20 @@ class TestResponse(unittest.TestCase):
         response['x-test'] = None
         self.assertEqual('None', response['x-test'])
 
-
+    def test_expires_header(self):
+        import datetime
+        response = BaseResponse()
+        now = datetime.datetime.now()
+        response.expires = now
+        
+        def seconds(a, b):
+            td = max(a,b) - min(a,b)
+            return td.days*360*24 + td.seconds
+        
+        self.assertEqual(0, seconds(response.expires, now))
+        now2 = datetime.datetime.utcfromtimestamp(
+            parse_date(response.headers['Expires']))
+        self.assertEqual(0, seconds(now, now2))
 
 class TestRedirect(unittest.TestCase):
 
@@ -631,6 +680,7 @@ class TestRedirect(unittest.TestCase):
                 del args[key]
         env.update(args)
         request.bind(env)
+        bottle.response.bind()
         try:
             bottle.redirect(target, **(query or {}))
         except bottle.HTTPResponse:
@@ -716,6 +766,17 @@ class TestRedirect(unittest.TestCase):
         self.assertRedirect('./te st.html',
                             'http://example.com/a%20a/b%20b/te st.html',
                             HTTP_HOST='example.com', SCRIPT_NAME='/a a/', PATH_INFO='/b b/')
+
+    def test_redirect_preserve_cookies(self):
+        env = {'SERVER_PROTOCOL':'HTTP/1.1'}
+        request.bind(env)
+        bottle.response.bind()
+        try:
+            bottle.response.set_cookie('xxx', 'yyy')
+            bottle.redirect('...')
+        except bottle.HTTPResponse:
+            h = [v for (k, v) in _e().headerlist if k == 'Set-Cookie']
+            self.assertEqual(h, ['xxx=yyy'])
 
 class TestWSGIHeaderDict(unittest.TestCase):
     def setUp(self):

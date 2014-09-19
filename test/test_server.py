@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import unittest
-import bottle
 import time
 from tools import tob
 import sys
@@ -20,13 +19,15 @@ serverscript = os.path.join(os.path.dirname(__file__), 'servertest.py')
 
 def ping(server, port):
     ''' Check if a server accepts connections on a specific TCP port '''
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((server, port))
-        s.close()
         return True
     except socket.error:
         return False
+    finally:
+        s.close()
+
 
 class TestServer(unittest.TestCase):
     server = 'wsgiref'
@@ -57,6 +58,7 @@ class TestServer(unittest.TestCase):
                 return
             if rv is 3: # Port in use
                 continue
+            raise AssertionError("Server exited with error code %d" % rv)
         raise AssertionError("Could not find a free port to test server.")
 
     def tearDown(self):
@@ -119,7 +121,7 @@ class TestRocketServer(TestServer):
 class TestFapwsServer(TestServer):
     server = 'fapws3'
 
-class TestFapwsServer(TestServer):
+class MeinheldServer(TestServer):
     server = 'meinheld'
 
 class TestBjoernServer(TestServer):

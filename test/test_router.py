@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
+
 import unittest
 import bottle
 
+
 class TestRouter(unittest.TestCase):
-    CGI=False
+    CGI = False
     
     def setUp(self):
         self.r = bottle.Router()
@@ -46,12 +49,14 @@ class TestRouter(unittest.TestCase):
         self.assertMatches('/<:re:anon>/match', '/anon/match') # Anon wildcards
         self.assertRaises(bottle.HTTPError, self.match, '//no/m/at/ch/')
 
+    def testUnicode(self):
+        self.assertMatches('/uni/<x>', '/uni/瓶', x='瓶')
+
     def testValueErrorInFilter(self):
         self.r.add_filter('test', lambda x: ('.*', int, int))
 
         self.assertMatches('/int/<i:test>', '/int/5', i=5) # No tail
         self.assertRaises(bottle.HTTPError, self.match, '/int/noint')
-
 
     def testIntFilter(self):
         self.assertMatches('/object/<id:int>', '/object/567', id=567)
@@ -82,6 +87,7 @@ class TestRouter(unittest.TestCase):
 
     def testErrorInPattern(self):
         self.assertRaises(Exception, self.assertMatches, '/:bug#(#/', '/foo/')
+        self.assertRaises(Exception, self.assertMatches, '/<:re:(>/', '/foo/')
 
     def testBuild(self):
         add, build = self.add, self.r.build
@@ -119,15 +125,38 @@ class TestRouter(unittest.TestCase):
         # RouteBuildError: Missing URL argument: anon0.
         self.assertRaises(ValueError, build, 'introute', 'hello')
 
-    def test_method(self):
-        #TODO Test method handling. This is done in the router now.
-        pass
+    def test_dynamic_before_static_any(self):
+        ''' Static ANY routes have lower priority than dynamic GET routes. '''
+        self.add('/foo', 'foo', 'ANY')
+        self.assertEqual(self.match('/foo')[0], 'foo')
+        self.add('/<:>', 'bar', 'GET')
+        self.assertEqual(self.match('/foo')[0], 'bar')
 
+    def test_any_static_before_dynamic(self):
+        ''' Static ANY routes have higher priority than dynamic ANY routes. '''
+        self.add('/<:>', 'bar', 'ANY')
+        self.assertEqual(self.match('/foo')[0], 'bar')
+        self.add('/foo', 'foo', 'ANY')
+        self.assertEqual(self.match('/foo')[0], 'foo')
+
+    def test_dynamic_any_if_method_exists(self):
+        ''' Check dynamic ANY routes if the matching method is known,
+            but not matched.'''
+        self.add('/bar<:>', 'bar', 'GET')
+        self.assertEqual(self.match('/barx')[0], 'bar')
+        self.add('/foo<:>', 'foo', 'ANY')
+        self.assertEqual(self.match('/foox')[0], 'foo')
+
+    def test_lots_of_routes(self):
+        n = bottle.Router._MAX_GROUPS_PER_PATTERN+10
+        for i in range(n):        
+            self.add('/<:>/'+str(i), str(i), 'GET')
+        self.assertEqual(self.match('/foo/'+str(n-1))[0], str(n-1))
 
 class TestRouterInCGIMode(TestRouter):
     ''' Makes no sense since the default route does not optimize CGI anymore.'''
     CGI = True
 
 
-if __name__ == '__main__': #pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
     unittest.main()

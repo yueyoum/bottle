@@ -3,29 +3,30 @@
 
 .. _mako: http://www.makotemplates.org/
 .. _cheetah: http://www.cheetahtemplate.org/
-.. _jinja2: http://jinja.pocoo.org/2/
+.. _jinja2: http://jinja.pocoo.org/
 .. _paste: http://pythonpaste.org/
 .. _fapws3: https://github.com/william-os4y/fapws3
 .. _bjoern: https://github.com/jonashaag/bjoern
 .. _flup: http://trac.saddi.com/flup
 .. _cherrypy: http://www.cherrypy.org/
-.. _WSGI: http://www.wsgi.org/wsgi/
+.. _WSGI: http://www.wsgi.org/
 .. _Python: http://python.org/
 .. _testing: https://github.com/defnull/bottle/raw/master/bottle.py
 .. _issue_tracker: https://github.com/defnull/bottle/issues
-.. _PyPi: http://pypi.python.org/pypi/bottle
+.. _PyPI: http://pypi.python.org/pypi/bottle
+.. _gae: https://developers.google.com/appengine/
 
 ============================
 Bottle: Python Web Framework
 ============================
 
-Bottle is a fast, simple and lightweight WSGI_ micro web-framework for Python_. It is distributed as a single file module and has no dependencies other than the `Python Standard Library <http://docs.python.org/library/>`_. 
+Bottle is a fast, simple and lightweight WSGI_ micro web-framework for Python_. It is distributed as a single file module and has no dependencies other than the `Python Standard Library <http://docs.python.org/library/>`_.
 
 
 * **Routing:** Requests to function-call mapping with support for clean and  dynamic URLs.
 * **Templates:** Fast and pythonic :ref:`built-in template engine <tutorial-templates>` and support for mako_, jinja2_ and cheetah_ templates.
 * **Utilities:** Convenient access to form data, file uploads, cookies, headers and other HTTP-related metadata.
-* **Server:** Built-in HTTP development server and support for paste_, fapws3_, bjoern_, `Google App Engine <http://code.google.com/intl/en-US/appengine/>`_, cherrypy_ or any other WSGI_ capable HTTP server.
+* **Server:** Built-in HTTP development server and support for paste_, fapws3_, bjoern_, gae_, cherrypy_ or any other WSGI_ capable HTTP server.
 
 .. rubric:: Example: "Hello World" in a bottle
 
@@ -33,8 +34,8 @@ Bottle is a fast, simple and lightweight WSGI_ micro web-framework for Python_. 
 
   from bottle import route, run, template
 
-  @route('/hello/:name')
-  def index(name='World'):
+  @route('/hello/<name>')
+  def index(name):
       return template('<b>Hello {{name}}</b>!', name=name)
 
   run(host='localhost', port=8080)
@@ -43,11 +44,9 @@ Run this script or paste it into a Python console, then point your browser to `<
 
 .. rubric:: Download and Install
 
-.. _download:
-
 .. __: https://github.com/defnull/bottle/raw/master/bottle.py
 
-Install the latest stable release via PyPi_ (``easy_install -U bottle``) or download `bottle.py`__ (unstable) into your project directory. There are no hard [1]_ dependencies other than the Python standard library. Bottle runs with **Python 2.5+ and 3.x**.
+Install the latest stable release with ``pip install bottle``, ``easy_install -U bottle`` or download `bottle.py`__ (unstable) into your project directory. There are no hard [1]_ dependencies other than the Python standard library. Bottle runs with **Python 2.5+ and 3.x**.
 
 User's Guide
 ===============
@@ -57,8 +56,10 @@ Start here if you want to learn how to use the bottle framework for web developm
    :maxdepth: 2
 
    tutorial
+   configuration
    routing
    stpl
+   deployment
    api
    plugins/index
 
@@ -93,7 +94,8 @@ These chapters are intended for developers interested in the bottle development 
    :hidden:
 
    plugins/index
-   
+   contact
+
 License
 ==================
 
